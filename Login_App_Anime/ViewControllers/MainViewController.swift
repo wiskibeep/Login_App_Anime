@@ -8,18 +8,26 @@
 import UIKit
 
 class MainViewController: UITableViewController {
-
+    
     override func viewDidLoad() {
         super.viewDidLoad()
-
+        
         // Do any additional setup after loading the view.
     }
     
     
     
     override func viewWillAppear(_ animated: Bool) {
-    
+        
         super.viewWillAppear(animated)
         navigationController?.setNavigationBarHidden(true, animated: animated)
     }
+    
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        
+        navigationController?.isNavigationBarHidden = false
+    }
+    
 }
