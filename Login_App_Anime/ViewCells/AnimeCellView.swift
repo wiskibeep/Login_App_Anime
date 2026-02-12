@@ -58,23 +58,23 @@ class AnimeCellView: UITableViewCell {
 
         // Episodios (puede ser nulo)
         if let episodes = anime.episodes {
-            EpisodioLabel.text = "Episodios: \(episodes)"
+            EpisodioLabel.text = " \(episodes)"
         } else {
-            EpisodioLabel.text = "Episodios¿?"
+            EpisodioLabel.text = "¿?"
         }
 
         // Ranking (puede ser nulo)
         if let rank = anime.rank {
-            rankinglabel.text = "Ranking: \(rank)"
+            rankinglabel.text = " \(rank)"
         } else {
-            rankinglabel.text = "Ranking¿?"
+            rankinglabel.text = "¿?"
         }
 
         // Popularidad
         if let popularity = anime.popularity {
-            popularyLabel.text = "Popularidad: \(popularity)"
+            popularyLabel.text = " \(popularity)"
         } else {
-            popularyLabel.text = "Popularidad¿?"
+            popularyLabel.text = "¿?"
         }
 
         // Sinopsis (puede ser nula o vacía, limitar a 160 caracteres)
