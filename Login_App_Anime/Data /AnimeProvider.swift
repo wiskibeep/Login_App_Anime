@@ -45,22 +45,39 @@ final class AnimeProvider {
     
     private let session = URLSession.shared
     
+    // DateFormatter para “yyyy-MM-dd”
+    private static let ymdFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.calendar = Calendar(identifier: .gregorian)
+        df.locale = Locale(identifier: "en_US_POSIX")
+        df.timeZone = TimeZone(secondsFromGMT: 0)
+        df.dateFormat = "yyyy-MM-dd"
+        return df
+    }()
+    
     // MARK: - Public API
     
-    // Listado con parámetros opcionales (paginación y filtros básicos)
+    // Listado con parámetros opcionales (paginación, filtros básicos, fechas y año exacto)
     func fetchAnimes(
         page: Int? = nil,
         limit: Int? = nil,
         query: String? = nil,
         orderBy: String? = nil,
-        sort: String? = nil
+        sort: String? = nil,
+        startDate: Date? = nil,
+        endDate: Date? = nil,
+        year: Int? = nil
+        
     ) async throws -> AnimeListResponse {
         let url = try makeListURL(
             page: page,
             limit: limit,
             query: query,
             orderBy: orderBy,
-            sort: sort
+            sort: sort,
+            startDate: startDate,
+            endDate: endDate,
+            year: year
         )
         return try await request(url, as: AnimeListResponse.self)
     }
@@ -79,7 +96,10 @@ final class AnimeProvider {
         limit: Int?,
         query: String?,
         orderBy: String?,
-        sort: String?
+        sort: String?,
+        startDate: Date?,
+        endDate: Date?,
+        year: Int?
     ) throws -> URL {
         guard let baseURL = URL(string: Constants.SERVER_BASE_URL) else {
             throw AnimeProviderError.invalidBaseURL
@@ -91,6 +111,17 @@ final class AnimeProvider {
         if let query, !query.isEmpty { items.append(URLQueryItem(name: "q", value: query)) }
         if let orderBy, !orderBy.isEmpty { items.append(URLQueryItem(name: "order_by", value: orderBy)) }
         if let sort, !sort.isEmpty { items.append(URLQueryItem(name: "sort", value: sort)) }
+        if let startDate {
+            let value = AnimeProvider.ymdFormatter.string(from: startDate)
+            items.append(URLQueryItem(name: "start_date", value: value))
+        }
+        if let endDate {
+            let value = AnimeProvider.ymdFormatter.string(from: endDate)
+            items.append(URLQueryItem(name: "end_date", value: value))
+        }
+        if let year {
+            items.append(URLQueryItem(name: "year", value: String(year)))
+        }
         if !items.isEmpty { components?.queryItems = items }
         guard let url = components?.url else { throw AnimeProviderError.invalidURL }
         return url
@@ -126,4 +157,3 @@ final class AnimeProvider {
         }
     }
 }
-

@@ -25,6 +25,9 @@ class GeneralViewController: UIViewController, UITableViewDataSource, UITableVie
     private let searchController = UISearchController(searchResultsController: nil)
     private var currentSearchText: String = ""
 
+    // Filtro por año exacto cuando NO hay búsqueda
+    private let filterYear: Int = 2004
+
     override func viewDidLoad() {
         super.viewDidLoad()
         tableView.dataSource = self
@@ -63,11 +66,25 @@ class GeneralViewController: UIViewController, UITableViewDataSource, UITableVie
 
         filteredAnimes = animes.filter { anime in
             var candidates: [String] = []
+            // Título principal
             candidates.append(anime.title.lowercased())
-            if let en = anime.title_english, !en.isEmpty { candidates.append(en.lowercased()) }
-            if let jp = anime.title_japanese, !jp.isEmpty { candidates.append(jp.lowercased()) }
-            if !anime.title_synonyms.isEmpty { candidates.append(contentsOf: anime.title_synonyms.map { $0.lowercased() }) }
-            if !anime.titles.isEmpty { candidates.append(contentsOf: anime.titles.map { $0.title.lowercased() }) }
+            // Título en inglés
+            if let en = anime.title_english, !en.isEmpty {
+                candidates.append(en.lowercased())
+            }
+            // Título japonés
+            if let jp = anime.title_japanese, !jp.isEmpty {
+                candidates.append(jp.lowercased())
+            }
+            // Sinónimos
+            if !anime.title_synonyms.isEmpty {
+                candidates.append(contentsOf: anime.title_synonyms.map { $0.lowercased() })
+            }
+            // Otros títulos en el array 'titles'
+            if !anime.titles.isEmpty {
+                candidates.append(contentsOf: anime.titles.map { $0.title.lowercased() })
+            }
+
             return candidates.contains(where: { $0.contains(needle) })
         }
 
@@ -89,13 +106,21 @@ class GeneralViewController: UIViewController, UITableViewDataSource, UITableVie
         Task { [weak self] in
             guard let self else { return }
             do {
+                // Si hay texto de búsqueda, usamos query en servidor y NO limitamos por año.
+                // Si no hay texto, aplicamos el filtro por año y orden descendente por score.
+                let isSearching = !currentSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+
                 let response = try await AnimeProvider.shared.fetchAnimes(
                     page: currentPage,
                     limit: pageSize,
-                    query: nil,
-                    orderBy: nil, // sin orden especial para máxima compatibilidad
-                    sort: nil
+                    query: isSearching ? currentSearchText : nil,
+                    orderBy: isSearching ? nil : "score", // relevancia por defecto al buscar; score si no hay búsqueda
+                    sort: isSearching ? nil : "desc",     // descendente por score cuando no hay búsqueda
+                    startDate: nil,
+                    endDate: nil,
+                    year: isSearching ? nil : filterYear  // solo año cuando no hay búsqueda
                 )
+
                 let newItems = response.data
                 let nextFlag = response.pagination?.has_next_page ?? false
 
@@ -105,7 +130,7 @@ class GeneralViewController: UIViewController, UITableViewDataSource, UITableVie
                     self.hasNextPage = nextFlag
                     self.currentPage += 1
                     self.isLoading = false
-                    // Aplica filtro vigente y recarga
+                    // Aplica filtro vigente y recarga (filtrado local por variantes de título)
                     self.applyFilterAndReload()
                 }
             } catch {
@@ -162,164 +187,14 @@ class GeneralViewController: UIViewController, UITableViewDataSource, UITableVie
 // MARK: - Actualización de resultados de búsqueda
 extension GeneralViewController: UISearchResultsUpdating {
     func updateSearchResults(for searchController: UISearchController) {
-        currentSearchText = searchController.searchBar.text ?? ""
-        applyFilterAndReload()
+        let newText = searchController.searchBar.text ?? ""
+        // Si cambia el texto, reseteamos la paginación y pedimos desde página 1
+        if newText != currentSearchText {
+            currentSearchText = newText
+            loadPage(reset: true)
+        } else {
+            // Si no cambió, solo aplicar filtro local
+            applyFilterAndReload()
+        }
     }
 }
-
-/*
- //
- //  ViewController.swift
- //  FreetoGame
- //
- //  Created by Tardes on 20/1/26.
- //
-
- import UIKit
-
- //MARK: fucnion inicial de la lista
- class ListViewController: UIViewController, UITableViewDataSource , UISearchBarDelegate{
-
-     // Enlace a la tabla de la interfaz (debe estar conectado en el storyboard)
-     @IBOutlet weak var tableView: UITableView!
-
-     
-     
-     
-     // Almacena la lista de juegos que se mostrarán en la tabla (datos originales)
-      var gamelist: [Game] = []
-
-     // Lista filtrada según la búsqueda
-      var filteredGames: [Game] = []
-
-     // Controlador de búsqueda integrado en la barra de navegación
-      let searchController = UISearchController(searchResultsController: nil)
-
-     // Guardar texto de búsqueda actual
-      var currentSearchText: String = ""
-
-     
-     
-     
-     
-     
-     // Método que se llama una vez que la vista ha sido cargada en memoria
-     override func viewDidLoad() {
-         super.viewDidLoad()
-
-         // Configura el dataSource de la tabla para que sea este controlador
-         tableView.dataSource = self
-
-         // Configurar el UISearchController
-         configureSearch()
-
-         // Llama a la función que obtiene la lista de juegos de manera asíncrona
-         Task {
-             // Obtiene la lista de juegos desde el proveedor (API)
-             let list = await GameProvider.getGameList()
-
-             // Actualiza datos y recarga en el hilo principal
-             DispatchQueue.main.async {
-                 self.gamelist = list
-                 self.applyFilterAndReload()
-             }
-         }
-     }
-
-     
-     
-     
-     // MARK: - Configuración de búsqueda
-      func configureSearch() {
-         // Mostrar el search bar en la navigation bar
-         navigationItem.searchController = searchController
-         navigationItem.hidesSearchBarWhenScrolling = false
-
-         // Configuraciones del search controller
-         searchController.obscuresBackgroundDuringPresentation = false
-         searchController.searchBar.placeholder = "Buscar juegos por título"
-         searchController.searchResultsUpdater = self
-         definesPresentationContext = true
-     }
-
-     
-     
-     // Aplica el filtro según el texto actual y recarga la tabla
-     private func applyFilterAndReload() {
-         let text = currentSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
-         if text.isEmpty {
-             filteredGames = gamelist
-         } else {
-             let lower = text.lowercased()
-             filteredGames = gamelist.filter { $0.title.lowercased().contains(lower) }
-         }
-         tableView.reloadData()
-     }
-
-     // MARK: - Métodos de UITableViewDataSource
-
-     
-     
-     
-     
-     
-     /// Devuelve el número de filas a mostrar en la sección de la tabla.
-     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-         return filteredGames.count
-     }
-
-     /// Configura y proporciona la celda para una fila específica de la tabla.
-     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-         // Obtiene una celda reutilizable del tipo correcto
-         let cell = tableView.dequeueReusableCell(withIdentifier: "Game Cell", for: indexPath) as! GameViewCell
-         // Obtiene el juego correspondiente a la fila
-         let game = filteredGames[indexPath.row]
-         // Configura la celda con la información del juego
-         cell.configure(with: game)
-         return cell
-     }
-
-     
-     
-     
-     
-     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-         let detailViewController = segue.destination as! DetailViewController
-         let indexPath = tableView.indexPathForSelectedRow!
-         
-         
-         
-         let game = filteredGames[indexPath.row]
-         detailViewController.game = game
-
-         // deseleccionar fila
-         tableView.deselectRow(at: indexPath, animated: true)
-     }
- }
-
-
-
-
-
-
- // MARK: - Actualización de resultados de búsqueda
- extension ListViewController: UISearchResultsUpdating {
-     func updateSearchResults(for searchController: UISearchController) {
-         currentSearchText = searchController.searchBar.text ?? ""
-         applyFilterAndReload()
-     }
- }
-
-
-
-
- /*
- //
- func searchBar (_searchBar : UISearchBar, textDidChange searchText: String ){
-     filtredGameList = originalGameList
-     game.title.localizedLowercase.contains(searchText)
- }
-
- */
-
- */
