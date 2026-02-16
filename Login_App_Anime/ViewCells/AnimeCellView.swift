@@ -20,7 +20,7 @@ class AnimeCellView: UITableViewCell {
     override func awakeFromNib() {
         super.awakeFromNib()
         // Estilos básicos
-        cardView.layer.cornerRadius = 16
+        cardView.layer.cornerRadius = 25
         cardView.layer.masksToBounds = true
         PortadaView.contentMode = .scaleAspectFill
         PortadaView.clipsToBounds = true

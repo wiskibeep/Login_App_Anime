@@ -33,8 +33,6 @@ class GeneralViewController: UIViewController, UITableViewDataSource, UITableVie
         tableView.dataSource = self
         tableView.delegate = self
 
-        // Si usas nib en vez de storyboard, descomenta y asegúrate del nombre correcto del XIB:
-        // tableView.register(UINib(nibName: "AnimeCellView", bundle: nil), forCellReuseIdentifier: "AnimeCellView")
 
         // Configurar búsqueda
         configureSearch()
@@ -106,8 +104,7 @@ class GeneralViewController: UIViewController, UITableViewDataSource, UITableVie
         Task { [weak self] in
             guard let self else { return }
             do {
-                // Si hay texto de búsqueda, usamos query en servidor y NO limitamos por año.
-                // Si no hay texto, aplicamos el filtro por año y orden descendente por score.
+
                 let isSearching = !currentSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 
                 let response = try await AnimeProvider.shared.fetchAnimes(
@@ -170,17 +167,7 @@ class GeneralViewController: UIViewController, UITableViewDataSource, UITableVie
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
 
-        // Ejemplo: si quieres cargar detalle por id al tocar una fila
-        // Task {
-        //     do {
-        //         let selected = filteredAnimes[indexPath.row]
-        //         let detailed = try await AnimeProvider.shared.fetchAnime(id: selected.mal_id)
-        //         print("Detalle cargado: \(detailed.title)")
-        //         // Aquí podrías navegar a un detalle con 'detailed'
-        //     } catch {
-        //         print("Error cargando detalle: \(error)")
-        //     }
-        // }
+
     }
 }
 
@@ -193,7 +180,7 @@ extension GeneralViewController: UISearchResultsUpdating {
             currentSearchText = newText
             loadPage(reset: true)
         } else {
-            // Si no cambió, solo aplicar filtro local
+
             applyFilterAndReload()
         }
     }
