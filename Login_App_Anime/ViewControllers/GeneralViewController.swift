@@ -28,11 +28,13 @@ class GeneralViewController: UIViewController, UITableViewDataSource, UITableVie
     // Filtro por año exacto cuando NO hay búsqueda
     private let filterYear: Int = 2004
 
+    // Guarda el anime seleccionado temporalmente para el segue
+    private var selectedAnime: AnimeData?
+
     override func viewDidLoad() {
         super.viewDidLoad()
         tableView.dataSource = self
         tableView.delegate = self
-
 
         // Configurar búsqueda
         configureSearch()
@@ -166,16 +168,17 @@ class GeneralViewController: UIViewController, UITableViewDataSource, UITableVie
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        let anime = filteredAnimes[indexPath.row]
+        // Guarda el anime seleccionado y lanza el segue
+        selectedAnime = filteredAnimes[indexPath.row]
+        performSegue(withIdentifier: "ShowAnimeDetail", sender: self)
+    }
 
-        // Instancia DetailViewController por Storyboard ID y hace push, pasando el anime seleccionado.
-        let storyboard = self.storyboard ?? UIStoryboard(name: "Main", bundle: nil)
-        guard let detailVC = storyboard.instantiateViewController(withIdentifier: "DetailViewController") as? DetailViewController else {
-            assertionFailure("No se encontró DetailViewController con Storyboard ID 'DetailViewController'")
-            return
+    // Pasa el anime al controlador de detalle antes de mostrarlo
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        if segue.identifier == "ShowAnimeDetail",
+           let detailVC = segue.destination as? DetailViewController {
+            detailVC.anime = selectedAnime
         }
-        detailVC.anime = anime
-        navigationController?.pushViewController(detailVC, animated: true)
     }
 }
 
