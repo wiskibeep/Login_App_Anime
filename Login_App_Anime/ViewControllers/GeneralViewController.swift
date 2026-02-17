@@ -166,8 +166,16 @@ class GeneralViewController: UIViewController, UITableViewDataSource, UITableVie
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
+        let anime = filteredAnimes[indexPath.row]
 
-
+        // Instancia DetailViewController por Storyboard ID y hace push, pasando el anime seleccionado.
+        let storyboard = self.storyboard ?? UIStoryboard(name: "Main", bundle: nil)
+        guard let detailVC = storyboard.instantiateViewController(withIdentifier: "DetailViewController") as? DetailViewController else {
+            assertionFailure("No se encontró DetailViewController con Storyboard ID 'DetailViewController'")
+            return
+        }
+        detailVC.anime = anime
+        navigationController?.pushViewController(detailVC, animated: true)
     }
 }
 
