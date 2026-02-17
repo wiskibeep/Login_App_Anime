@@ -1,79 +1,33 @@
-//
-//  DetailViewController.swift
-//  Login_App_Anime
-//
-//  Created by Tardes on 13/2/26.
-//
-
 import UIKit
 
 class DetailViewController: UIViewController {
+    var anime: AnimeData? {
+        didSet {
+            // Si la vista está cargada, actualiza los datos.
+            if isViewLoaded {
+                configureView()
+            }
+        }
+    }
 
- //   @IBOutlet weak var cardView: UIView!
-    @IBOutlet weak var animeLabel: UILabel!
-    @IBOutlet weak var portadaView: UIImageView!
-    @IBOutlet weak var episodioLabel: UILabel!
-    @IBOutlet weak var rankingLabel: UILabel!
-    @IBOutlet weak var popularityLabel: UILabel!
-    @IBOutlet weak var sinopsisLabel: UILabel!
-
-    var anime: AnimeData?
+    @IBOutlet weak var scrollView: UIScrollView!
+    @IBOutlet weak var contentView: UIView!
+    @IBOutlet weak var titleLabel: UILabel!
+    @IBOutlet weak var posterImageView: UIImageView!
+    @IBOutlet weak var synopsisLabel: UILabel!
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        setupUI()
-        configureUI()
+        configureView()
     }
 
-    
-    private func setupUI() {
-       // cardView.layer.cornerRadius = 16
-        //cardView.layer.masksToBounds = true
-        portadaView.contentMode = .scaleAspectFill
-        portadaView.clipsToBounds = true
-    }
-
-    private func configureUI() {
+    private func configureView() {
+        guard isViewLoaded else { return }
         guard let anime = anime else { return }
-
-        animeLabel.text = anime.title
-
-        let imageURL: String? =
-            anime.images.jpg.large_image_url ??
-            anime.images.jpg.image_url ??
-            anime.images.jpg.small_image_url ??
-            anime.images.webp.large_image_url ??
-            anime.images.webp.image_url ??
-            anime.images.webp.small_image_url
-
-        if let urlString = imageURL {
-            portadaView.loadFrom(url: urlString)
-        } else {
-            portadaView.image = nil
-        }
-
-        if let episodes = anime.episodes {
-            episodioLabel.text = " \(episodes)"
-        } else {
-            episodioLabel.text = "¿?"
-        }
-
-        if let rank = anime.rank {
-            rankingLabel.text = " \(rank)"
-        } else {
-            rankingLabel.text = "¿?"
-        }
-
-        if let popularity = anime.popularity {
-            popularityLabel.text = " \(popularity)"
-        } else {
-            popularityLabel.text = "¿?"
-        }
-
-        if let synopsis = anime.synopsis, !synopsis.isEmpty {
-            sinopsisLabel.text = synopsis
-        } else {
-            sinopsisLabel.text = "Sin sinopsis disponible"
+        titleLabel.text = anime.title
+        synopsisLabel.text = anime.synopsis
+        if let imageUrl = anime.images.jpg.large_image_url ?? anime.images.jpg.image_url {
+            posterImageView.loadFrom(url: imageUrl)
         }
     }
 }

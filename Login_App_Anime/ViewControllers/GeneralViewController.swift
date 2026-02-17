@@ -1,59 +1,39 @@
-//
-//  GeneralViewController.swift
-//  Login_App_Anime
-//
-//  Created by Tardes on 9/2/26.
-//
-
 import UIKit
 
 class GeneralViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
 
     @IBOutlet weak var tableView: UITableView!
 
+    
     var animes: [AnimeData] = []
-    // Lista filtrada para mostrar en la tabla
     private var filteredAnimes: [AnimeData] = []
 
-    // Estado de paginación
+    // Paginación, búsqueda, etc. (el resto de tus propiedades)
     private var currentPage: Int = 1
     private var isLoading: Bool = false
     private var hasNextPage: Bool = true
-    private let pageSize: Int = 20 // puedes ajustar
-
-    // Búsqueda
+    private let pageSize: Int = 20
     private let searchController = UISearchController(searchResultsController: nil)
     private var currentSearchText: String = ""
-
-    // Filtro por año exacto cuando NO hay búsqueda
     private let filterYear: Int = 2004
-
-    // Guarda el anime seleccionado temporalmente para el segue
-    private var selectedAnime: AnimeData?
 
     override func viewDidLoad() {
         super.viewDidLoad()
         tableView.dataSource = self
         tableView.delegate = self
-
-        // Configurar búsqueda
         configureSearch()
-
-        // Carga inicial (página 1)
         loadPage(reset: true)
     }
 
     private func configureSearch() {
         navigationItem.searchController = searchController
         navigationItem.hidesSearchBarWhenScrolling = false
-
         searchController.obscuresBackgroundDuringPresentation = false
         searchController.searchBar.placeholder = "Buscar animes por título"
         searchController.searchResultsUpdater = self
         definesPresentationContext = true
     }
 
-    // Búsqueda local: filtra por múltiples variantes de título
     private func applyFilterAndReload() {
         let text = currentSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else {
@@ -63,31 +43,23 @@ class GeneralViewController: UIViewController, UITableViewDataSource, UITableVie
         }
 
         let needle = text.lowercased()
-
         filteredAnimes = animes.filter { anime in
             var candidates: [String] = []
-            // Título principal
             candidates.append(anime.title.lowercased())
-            // Título en inglés
             if let en = anime.title_english, !en.isEmpty {
                 candidates.append(en.lowercased())
             }
-            // Título japonés
             if let jp = anime.title_japanese, !jp.isEmpty {
                 candidates.append(jp.lowercased())
             }
-            // Sinónimos
             if !anime.title_synonyms.isEmpty {
                 candidates.append(contentsOf: anime.title_synonyms.map { $0.lowercased() })
             }
-            // Otros títulos en el array 'titles'
             if !anime.titles.isEmpty {
                 candidates.append(contentsOf: anime.titles.map { $0.title.lowercased() })
             }
-
             return candidates.contains(where: { $0.contains(needle) })
         }
-
         tableView.reloadData()
     }
 
@@ -106,30 +78,27 @@ class GeneralViewController: UIViewController, UITableViewDataSource, UITableVie
         Task { [weak self] in
             guard let self else { return }
             do {
-
                 let isSearching = !currentSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 
                 let response = try await AnimeProvider.shared.fetchAnimes(
                     page: currentPage,
                     limit: pageSize,
                     query: isSearching ? currentSearchText : nil,
-                    orderBy: isSearching ? nil : "score", // relevancia por defecto al buscar; score si no hay búsqueda
-                    sort: isSearching ? nil : "desc",     // descendente por score cuando no hay búsqueda
+                    orderBy: isSearching ? nil : "score",
+                    sort: isSearching ? nil : "desc",
                     startDate: nil,
                     endDate: nil,
-                    year: isSearching ? nil : filterYear  // solo año cuando no hay búsqueda
+                    year: isSearching ? nil : filterYear
                 )
 
                 let newItems = response.data
                 let nextFlag = response.pagination?.has_next_page ?? false
 
-                // Actualiza estado en el MainActor
                 await MainActor.run {
                     self.animes.append(contentsOf: newItems)
                     self.hasNextPage = nextFlag
                     self.currentPage += 1
                     self.isLoading = false
-                    // Aplica filtro vigente y recarga (filtrado local por variantes de título)
                     self.applyFilterAndReload()
                 }
             } catch {
@@ -158,9 +127,8 @@ class GeneralViewController: UIViewController, UITableViewDataSource, UITableVie
 
     // MARK: - UITableViewDelegate
 
-    // Dispara la carga cuando se vaya a mostrar una de las últimas celdas
     func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
-        let threshold = filteredAnimes.count - 5 // cuando queden 5 por mostrar, pedimos más
+        let threshold = filteredAnimes.count - 5
         if indexPath.row >= threshold {
             loadPage(reset: false)
         }
@@ -168,31 +136,29 @@ class GeneralViewController: UIViewController, UITableViewDataSource, UITableVie
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        // Guarda el anime seleccionado y lanza el segue
-        selectedAnime = filteredAnimes[indexPath.row]
-        performSegue(withIdentifier: "ShowAnimeDetail", sender: self)
+        let anime = filteredAnimes[indexPath.row]
+        performSegue(withIdentifier: "ShowAnimeDetail", sender: anime)
     }
 
-    // Pasa el anime al controlador de detalle antes de mostrarlo
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         if segue.identifier == "ShowAnimeDetail",
-           let detailVC = segue.destination as? DetailViewController {
-            detailVC.anime = selectedAnime
+           let detailVC = segue.destination as? DetailViewController,
+           let anime = sender as? AnimeData {
+            detailVC.anime = anime
         }
     }
 }
 
-// MARK: - Actualización de resultados de búsqueda
+// MARK: - UISearchResultsUpdating
 extension GeneralViewController: UISearchResultsUpdating {
     func updateSearchResults(for searchController: UISearchController) {
         let newText = searchController.searchBar.text ?? ""
-        // Si cambia el texto, reseteamos la paginación y pedimos desde página 1
         if newText != currentSearchText {
             currentSearchText = newText
             loadPage(reset: true)
         } else {
-
             applyFilterAndReload()
         }
     }
 }
+
